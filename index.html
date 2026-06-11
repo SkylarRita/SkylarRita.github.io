@@ -1,0 +1,4637 @@
+<!DOCTYPE html>
+
+
+
+
+<html lang="zh-CN">
+
+
+
+
+<head>
+
+
+
+
+    <meta charset="UTF-8">
+
+
+
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+
+
+
+    <title>抚养一颗苹果</title>
+
+
+
+
+    <style>
+
+
+
+
+        :root {
+
+
+
+
+            --primary-green: #2EB872;
+
+
+
+
+            --apple-red: #FA4659;
+
+
+
+
+            --cream-bg: #FEFFE4;
+
+
+
+
+            --oat-accent: #F5DE8F;
+
+
+
+
+            --border-color: #4A3427;
+
+
+
+
+        }
+
+
+
+
+        body { margin: 0; background-color: var(--cream-bg); font-family: 'Microsoft YaHei', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+
+
+
+
+        #game-container {
+
+
+
+
+            width: 100%; max-width: 400px; height: 100%; max-height: 800px;
+
+
+
+
+            background: var(--cream-bg); border: 5px solid var(--border-color); border-radius: 40px;
+
+
+
+
+            position: relative; box-shadow: 0 12px 0 var(--oat-accent); display: flex; flex-direction: column; overflow: hidden;
+
+
+
+
+        }
+
+
+
+
+        /* 状态栏 */
+
+
+
+
+        .status-bar { padding: 15px; display: flex; justify-content: space-around; background: white; border: 3px solid var(--border-color); margin: 15px; border-radius: 20px;
+
+
+
+
+            box-shadow: 4px 4px 0 var(--border-color); z-index: 10; }
+
+
+
+
+        .stat-item { text-align: center; font-size: 13px; font-weight: bold; color: var(--border-color); }
+
+
+
+
+        .progress-bg { width: 65px; height: 12px; background: #eee; border: 2px solid var(--border-color); border-radius: 10px; margin-top: 5px; overflow: hidden; z-index: 10;}
+
+
+
+
+        .progress-fill { height: 100%; transition: width 0.5s ease; }
+
+
+
+
+        /* 核心画面区 */
+
+
+
+
+        #home-scene { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background-image: radial-gradient(var(--oat-accent) 2px, transparent 2px); background-size: 20px 20px;
+
+
+
+
+            z-index: 5; }
+/* 家园背景图层 - 层级：高于默认点阵背景，低于苹果角色 */
+#home-bg-layer {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 6; /* 层级：5(原背景) < 6(新背景) < 20(苹果角色) */
+    pointer-events: none; /* 不拦截点击、拖拽事件 */
+}
+
+
+
+        /* 立绘大容器 */
+
+
+
+
+        #apple-character {
+
+
+
+
+            width: 380px;
+
+
+
+
+            height: 380px;
+
+
+
+
+            position: absolute;
+
+
+
+
+            cursor: grab;
+
+
+
+
+            user-select: none;
+
+
+
+
+            transition: transform 0.1s ease-out;
+
+
+
+
+            z-index: 20;
+
+
+
+
+            background-size: contain;
+
+
+
+
+            background-repeat: no-repeat;
+
+
+
+
+            background-position: center bottom;
+
+
+
+
+            transform-origin: center bottom;
+
+
+
+
+        }
+
+
+
+
+        /* 果冻呼吸 */
+
+
+
+
+        @keyframes jellyBreath {
+
+
+
+
+            0% { transform: scale(1, 1); }
+
+
+
+
+            45% { transform: scale(1.03, 0.97) translateY(2px); }
+
+
+
+
+            55% { transform: scale(1.03, 0.97) translateY(2px); }
+
+
+
+
+            100% { transform: scale(1, 1); }
+
+
+
+
+        }
+
+
+
+
+        .breathing { animation: jellyBreath 3.5s ease-in-out infinite; }
+
+
+
+
+        #apple-character.dragging { cursor: grabbing; animation: none; scale: 1.05; }
+
+
+
+
+        
+
+
+
+
+        /* --- 五维换装图层管理（遵循全新图层优先级）【已修改：新增背饰、脸饰层级】 --- */
+
+
+
+
+        .sub-layer { position: absolute; width: 100%; height: 100%; background-size: contain; background-repeat: no-repeat; background-position: center bottom; pointer-events: none; }
+
+
+
+
+        #layer-back { z-index: 1.5; }     /*【新增】背饰：身体下层、衣服最底下 */
+
+        #layer-body { z-index: 2; }       /* 基础身体 */
+
+
+
+
+        #layer-clothes { z-index: 3; }    /* 衣服 */
+
+
+
+
+        #layer-hair { z-index: 4; }       /* 发饰 */
+
+
+
+
+        #layer-accessory { z-index: 4.5; } /* 配饰 */
+
+
+
+
+        #layer-head { z-index: 5; }       /* 头饰 (高优先级) */
+
+
+
+
+        #layer-hand { z-index: 6; }       /* 手持物 */
+
+        #layer-face { z-index: 7; }       /*【新增】脸饰：全图层最顶层 */
+        /*新增生病表情图层，层级最高*/
+        #layer-sick { z-index: 8; position:absolute;width:100%;height:100%;background-size:contain;background-repeat:no-repeat;background-position:center bottom;pointer-events:none;}
+        /* 喂食表情图层 层级最高 */
+#layer-eat { 
+    z-index: 9; 
+    position:absolute;
+    width:100%;
+    height:100%;
+    background-size:contain;
+    background-repeat:no-repeat;
+    background-position:center bottom;
+    pointer-events:none;
+    display: none;
+}
+/* 得意表情图层 */
+#layer-proud {
+    z-index: 10;
+    position:absolute;
+    width:100%;
+    height:100%;
+    background-size:contain;
+    background-repeat:no-repeat;
+    background-position:center bottom;
+    pointer-events:none;
+    display: none;
+}
+/* 搞怪贴纸图层 */
+#layer-sticker {
+    z-index: 11;
+    position:absolute;
+    width:100%;
+    height:100%;
+    background-size:contain;
+    background-repeat:no-repeat;
+    background-position:center bottom;
+    pointer-events:none;
+    display: none;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /* 对话气泡 */
+
+
+
+
+        #chat-bubble { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); background: white; border: 3px solid var(--border-color); padding: 12px 20px;
+
+
+
+
+            border-radius: 25px; font-size: 15px; display: none; z-index: 100; box-shadow: 4px 4px 0 var(--border-color); font-weight: bold; color: var(--border-color); width: 75%;
+
+
+
+
+            text-align: center; }
+
+
+
+
+        /* 底部导航 */
+
+
+
+
+        .nav-bar { display: flex; justify-content: space-around; padding: 20px; background: var(--oat-accent); border-top: 5px solid var(--border-color); z-index: 10;}
+
+
+
+
+        .nav-btn { background: white; border: 3px solid var(--border-color); padding: 12px; border-radius: 15px; font-weight: bold; box-shadow: 0 5px 0 var(--border-color);
+
+
+
+
+            cursor: pointer; }
+
+
+
+
+        .nav-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--border-color); }
+
+
+
+
+        /* 故事开场序幕 */
+
+
+
+
+        #onboarding { position: absolute; inset: 0; background: var(--cream-bg); z-index: 200; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 40px;
+
+
+
+
+            text-align: center; }
+
+
+
+
+        .story-text { font-size: 18px; font-weight: bold; margin-bottom: 20px; color: var(--border-color); line-height: 1.6; }
+
+
+
+
+        .story-img-container { width: 340px; height: 340px; margin: 15px auto; background-size: contain; background-repeat: no-repeat; background-position: center; }
+
+
+
+
+        .input-group { margin: 10px 0; width: 100%; font-weight: bold; color: var(--border-color); }
+
+
+
+
+        input { padding: 12px; border: 3px solid var(--border-color); border-radius: 15px; font-size: 16px; width: 85%; margin-top: 8px; outline: none; }
+
+
+
+
+        .start-btn { background: var(--primary-green); color: white; border: 3px solid var(--border-color); padding: 15px 40px; border-radius: 20px; font-weight: bold; cursor: pointer;
+
+
+
+
+            margin-top: 30px; box-shadow: 0 5px 0 var(--border-color); }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        /* 👑 【修改】全新上下分区换装商城弹窗系统：上半苹果，下半商品 👑 */
+
+
+
+
+        #shop-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 150; display: none; justify-content: center; align-items: flex-end; }
+
+
+
+
+        .shop-content { width: 100%; background: var(--cream-bg); border-top: 5px solid var(--border-color); border-radius: 30px 30px 0 0; display: flex; flex-direction: column;
+
+
+
+
+            height: 85%; max-height: 85%; }
+
+
+
+
+        .shop-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; border-bottom: 3px solid var(--border-color); background: white; }
+
+
+
+
+        .shop-title { font-weight: bold; color: var(--border-color); font-size: 16px; }
+
+
+
+
+        .close-shop { cursor: pointer; font-size: 20px; font-weight: bold; color: var(--border-color); }
+
+
+
+
+        
+
+
+
+
+        /* 【修改】试衣间上下布局：上半苹果预览、下半分类商品 */
+
+
+
+
+        .shop-main-layout { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+
+
+
+        
+
+
+
+
+        /* 上部：苹果预览区 */
+
+
+
+
+        .shop-preview-stage {
+
+
+
+
+            height: 52%; background: #ffffff; border-bottom: 3px solid var(--border-color);
+
+
+
+
+            position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden;
+
+
+
+
+            background-image: radial-gradient(#f0efd5 1.5px, transparent 1.5px); background-size: 15px 15px;
+
+
+
+
+        }
+
+
+
+
+        /* 缩放自适应当前预览面板的独立小苹果容器 */
+
+
+
+
+        .shop-stage-apple {
+
+
+
+
+            width: 320px; height: 320px; position: absolute; transform-origin: center bottom; pointer-events: none;
+
+
+
+
+            bottom: -20px;
+
+
+
+
+            transform: scale(0.7);
+
+
+
+
+        }
+
+
+
+
+        
+
+
+
+
+        /* 下部：商品陈列与分类区 */
+
+
+
+
+        .shop-market-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fffaf1; }
+
+
+
+
+        /* 商城横向分类标签 */
+
+
+
+
+        .shop-tabs { display: flex; overflow-x: auto; padding: 10px 8px; gap: 6px; border-bottom: 2px solid var(--border-color); background: white; scrollbar-width: none; }
+
+
+
+
+        .shop-tabs::-webkit-scrollbar { display: none; }
+
+
+
+
+        .tab-btn { background: white; border: 2px solid var(--border-color); padding: 5px 10px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+
+
+
+
+        .tab-btn.active { background: var(--oat-accent); box-shadow: 1px 1px 0 var(--border-color); }
+
+
+
+
+        
+
+
+
+
+        /* 右侧独立纵向滚动列表 */
+
+
+
+
+        .item-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+
+
+
+        .shop-item { background: white; border: 2px solid var(--border-color); border-radius: 12px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; position: relative; box-shadow: 2px 2px 0 var(--border-color); gap:10px; }
+        /*=====修改：外框正方形，内部图片居中自适应、不拉伸=====*/
+        .item-thumb{
+            width:50px;
+            height:50px;
+            border:2px solid var(--border-color);
+            border-radius:8px;
+            background:#f8f8f8;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+        .item-thumb-inner{
+            width:100%;
+            height:100%;
+            background-size:contain;
+            background-repeat:no-repeat;
+            background-position:center;
+        }
+        .item-info { display: flex; flex-direction: column; gap: 2px; flex:1; }
+
+
+
+
+        .item-name { font-size: 13px; font-weight: bold; color: var(--border-color); }
+
+
+
+
+        .item-price { font-size: 11px; color: var(--apple-red); font-weight: bold; }
+
+
+
+
+        .shop-btn { background: var(--primary-green); color: white; border: 2px solid var(--border-color); padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; }
+
+
+
+
+        .shop-btn.previewing { background: #FF8B13; }
+
+
+
+
+        .shop-btn.owned { background: #8bc34a; }
+
+
+
+
+        
+
+
+
+
+        .depressed { filter: saturate(0.4); }
+
+
+
+
+        .dead { filter: grayscale(1); }
+
+
+
+/* 关卡选择弹窗样式 */
+#level-select-modal{
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 220;
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+.level-select-box{
+    background: var(--cream-bg);
+    border: 5px solid var(--border-color);
+    border-radius: 20px;
+    padding: 25px;
+    width: 80%;
+    max-width: 300px;
+    box-shadow: 6px 6px 0 var(--oat-accent);
+}
+.level-title{
+    text-align: center;
+    font-weight: bold;
+    color: var(--border-color);
+    font-size: 16px;
+    margin-bottom: 20px;
+}
+.level-list{
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+.level-item{
+    background: white;
+    border: 3px solid var(--border-color);
+    border-radius: 12px;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    color: var(--border-color);
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--border-color);
+}
+.level-item:active{
+    transform: translateY(2px);
+    box-shadow: 1px 1px 0 var(--border-color);
+}
+.level-close{
+    margin-top: 20px;
+    width: 100%;
+    padding: 10px;
+    background: var(--apple-red);
+    color: white;
+    border: 3px solid var(--border-color);
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--border-color);
+}
+    </style>
+
+
+
+
+</head>
+
+
+
+
+<body>
+
+
+
+
+<div id="game-container">
+
+
+
+
+    <div id="onboarding" style="display: none;">
+
+
+
+
+        <div id="story-phase-1">
+
+
+
+
+            <div class="story-text">这天，你捡到了一袋种子。</div>
+
+
+
+
+            <div class="story-img-container" style="background-image: url('seed.png');"></div>
+
+
+
+
+            <button class="start-btn" onclick="gameState.nextStoryPhase(2)">看看是什么</button>
+
+
+
+
+        </div>
+
+
+
+
+        <div id="story-phase-2" style="display: none;">
+
+
+
+
+            <div class="story-text">于是，你决定——<br>领养一颗苹果。</div>
+
+
+
+
+            <div class="story-img-container" style="background-image: url('seed.png'); margin-bottom: 25px;"></div>
+
+
+
+
+            <button class="start-btn" onclick="gameState.nextStoryPhase(3)">开始仪式</button>
+
+
+
+
+        </div>
+
+
+
+
+        <div id="story-phase-3" style="display: none; width: 100%;">
+
+
+
+
+            <div class="input-group">
+
+
+
+
+                <p>名字是最短的咒语，请先为它取名吧：</p>
+
+
+
+
+                <input type="text" id="pet-name-input" placeholder="输入名字...">
+
+
+
+
+            </div>
+
+
+
+
+            <div class="input-group" style="margin-top: 20px;">
+
+
+
+
+                <p>你希望它称呼你为……</p>
+
+
+
+
+                <input type="text" id="user-name-input" placeholder="输入称呼...">
+
+
+
+
+            </div>
+
+
+
+
+            <button class="start-btn" onclick="gameState.finishOnboarding()">建立羁绊</button>
+
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+    <div class="status-bar">
+
+
+
+
+        <div class="stat-item">健康 <div class="progress-bg"><div id="hp-bar" class="progress-fill" style="background: var(--primary-green);"></div></div></div>
+
+
+
+
+        <div class="stat-item">快乐 <div class="progress-bg"><div id="happy-bar" class="progress-fill" style="background: #FFD93D;"></div></div></div>
+
+
+
+
+        <div class="stat-item">饱腹 <div class="progress-bg"><div id="hunger-bar" class="progress-fill" style="background: #FF8B13;"></div></div></div>
+
+
+
+
+        <div class="stat-item">金币 <div id="coin-count" style="color:var(--apple-red); font-size: 16px; font-weight: bold;">100</div></div>
+
+
+
+
+    </div>
+
+
+
+
+    <div id="home-scene">
+
+<!-- 新增：家园背景图层 -->
+         <div id="home-bg-layer"></div>
+
+
+        <div id="chat-bubble"></div>
+
+
+
+
+        <div id="apple-character" class="breathing"
+
+
+
+
+             onmousedown="dragState.start(event)"
+
+
+
+
+             ontouchstart="dragState.start(event)">
+
+            <!--【新增：背饰、脸饰、生病图层】 -->
+            <div id="layer-back" class="sub-layer"></div>
+            <div id="layer-body" class="sub-layer"></div>
+            <div id="layer-clothes" class="sub-layer"></div>
+            <div id="layer-hair" class="sub-layer"></div>
+            <div id="layer-accessory" class="sub-layer"></div>
+            <div id="layer-head" class="sub-layer"></div>
+            <div id="layer-hand" class="sub-layer"></div>
+            <div id="layer-face" class="sub-layer"></div>
+            <div id="layer-sick"></div>
+            <!-- 新增：喂食表情图层 -->
+             <div id="layer-proud"></div>
+<div id="layer-sticker"></div>
+            <div id="layer-eat" class="sub-layer"></div>
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+             <div class="nav-bar">
+        <div class="nav-btn" onclick="gameState.feed()">喂食</div>
+        <div class="nav-btn" style="background: var(--apple-red); color: white;" onclick="gameState.passLevel()">测试闯关</div>
+        <div class="nav-btn" onclick="shopSystem.openShop()">商城</div>
+        <!-- 新增：家具城按钮 -->
+        <div class="nav-btn" onclick="furnitureSystem.openFurniture()">家具城</div>
+        <div class="nav-btn" onclick="gameState.reset()">重置</div>
+    </div>
+
+
+
+
+    
+
+
+
+
+    <div id="shop-modal" onclick="shopSystem.closeShop()">
+
+
+
+
+        <div class="shop-content" onclick="event.stopPropagation()">
+
+
+
+
+            <div class="shop-header">
+
+
+
+
+                <div class="shop-title">🛍️ 苹果的梦想商城</div>
+
+
+
+
+                <div class="close-shop" onclick="shopSystem.closeShop()">×</div>
+
+
+
+
+            </div>
+
+
+
+
+            
+
+
+
+
+            <div class="shop-main-layout">
+
+
+
+
+                <div class="shop-preview-stage">
+
+
+
+
+                    <div id="shop-stage-apple-container" class="shop-stage-apple breathing">
+                        <!--商城预览也加生病图层-->
+                        <div id="stage-layer-back" class="sub-layer"></div>
+                        <div id="stage-layer-body" class="sub-layer"></div>
+                        <div id="stage-layer-clothes" class="sub-layer"></div>
+                        <div id="stage-layer-hair" class="sub-layer"></div>
+                        <div id="stage-layer-accessory" class="sub-layer"></div>
+                        <div id="stage-layer-head" class="sub-layer"></div>
+                        <div id="stage-layer-hand" class="sub-layer"></div>
+                        <div id="stage-layer-face" class="sub-layer"></div>
+                        <div id="stage-layer-sick" style="position:absolute;width:100%;height:100%;background-size:contain;background-repeat:no-repeat;background-position:center bottom;pointer-events:none;z-index:8;"></div>
+                    </div>
+
+
+
+
+                    <div style="position: absolute; top: 10px; left: 12px; background: rgba(74,52,39,0.1); padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: bold; color: var(--border-color); pointer-events: none; border: 1px solid rgba(74,52,39,0.2); box-shadow: 1px 1px 0 rgba(74,52,39,0.1);">✨ 试衣间</div>
+
+
+
+
+                </div>
+
+
+
+
+                
+
+
+
+
+                <div class="shop-market-panel">
+
+
+
+
+                    <div class="shop-tabs" id="shop-tabs-container"></div>
+
+
+
+
+                    <div class="item-list" id="shop-item-list"></div>
+
+
+
+
+                </div>
+
+
+
+
+            </div>
+
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+</div>
+
+    <!-- 新增：家具城-背景选择弹窗 -->
+    <div id="furniture-modal" style="position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 160; display: none; justify-content: center; align-items: center;" onclick="furnitureSystem.closeFurniture()">
+        <div style="width: 85%; max-width: 340px; background: var(--cream-bg); border: 5px solid var(--border-color); border-radius: 25px; padding: 20px; box-shadow: 6px 6px 0 var(--oat-accent);" onclick="event.stopPropagation()">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <div style="font-weight: bold; color: var(--border-color); font-size: 17px;">🏠 家具城 - 更换家园背景</div>
+                <div style="font-size: 20px; font-weight: bold; color: var(--border-color); cursor: pointer;" onclick="furnitureSystem.closeFurniture()">×</div>
+            </div>
+            <!-- 背景列表 -->
+            <div id="furniture-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto;"></div>
+            <div style="margin-top: 15px; text-align: center;">
+                <button style="background: var(--primary-green); color: white; border: 3px solid var(--border-color); padding: 8px 25px; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 0 var(--border-color);" onclick="furnitureSystem.saveBg()">确定使用当前背景</button>
+            </div>
+        </div>
+    </div>
+
+
+<div id="stage-modal" style="position: absolute; inset: 0; background: var(--cream-bg); z-index: 180; display: none; flex-direction: column; overflow: hidden; margin: 0 auto; max-width: 400px; border-left: 5px solid var(--border-color); border-right: 5px solid var(--border-color); border-bottom: 5px solid var(--border-color); border-radius: 0 0 40px 40px;">
+
+
+
+
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 3px solid var(--border-color); background: white;">
+
+
+
+
+        <div id="stage-title" style="font-weight: bold; color: var(--border-color); font-size: 16px;">🎯 核心闯关：第一关</div>
+
+
+
+
+        <div style="cursor: pointer; font-size: 20px; font-weight: bold; color: var(--border-color);" onclick="stageSystem.closeStage()">×</div>
+
+
+
+
+    </div>
+
+
+
+
+    <div style="flex: 1; position: relative; overflow: auto; background: #f0f0f0; display: flex; justify-content: center; align-items: flex-start;">
+
+
+
+
+        <div id="stage-img-wrapper" style="position: relative; width: 100%; max-width: 400px;">
+
+
+
+
+            <img id="stage-bg-img" src="1.jpg" style="width: 100%; display: block;">
+
+
+
+
+            <div id="stage-hotspots" style="position: absolute; inset: 0; pointer-events: none;"></div>
+
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+    <div id="stage-panel" style="background: white; border-top: 5px solid var(--border-color); padding: 15px; display: flex; flex-direction: column; gap: 10px; min-height: 180px; box-shadow: 0 -5px 15px rgba(0,0,0.05);">
+
+
+
+
+        <div id="panel-prompt" style="font-size: 15px; font-weight: bold; color: var(--border-color); text-align: center; margin-bottom: 5px;">
+
+
+
+
+            💡 请点击图片上的黄色中文标签开始挑战！
+
+
+
+
+        </div>
+
+
+
+
+        <div id="panel-actions" style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;"></div>
+
+
+
+
+        <div id="panel-result" style="display: none; background: #fffaf1; border: 2px dashed var(--border-color); border-radius: 12px; padding: 10px; text-align: center; margin-top: 5px;">
+
+
+
+
+            <div id="result-word" style="font-size: 18px; font-weight: bold; color: var(--apple-red);">word</div>
+
+
+
+
+            <div id="result-phonetic" style="font-size: 13px; color: #666; margin: 2px 0;">/phonetic/</div>
+
+
+
+
+            <button id="result-audio-btn" style="background: var(--oat-accent); border: 2px solid var(--border-color); border-radius: 8px; padding: 3px 10px; font-size: 12px; font-weight: bold; cursor: pointer;">🔊 听标准发音</button>
+
+
+
+
+        </div>
+
+
+
+
+    </div>
+
+
+
+
+</div>
+
+
+
+
+<script>
+
+
+
+
+        // --- 商城物品数据库配置（分类完美适配：head头饰、hair发饰、clothes衣服、hand手持物、accessory配饰【新增back背饰、face脸饰】） ---
+    const SHOP_DATABASE = [
+        // 原有商品（保留不删除）
+        { id: 'dragon_crown', name: '龙的传人', category: 'head', price: 150, minLevel: 2, file: 'dragon_crown' },
+        { id: 'imperial_robe', name: '黄袍加身', category: 'clothes', price: 300, minLevel: 4, file: 'imperial_robe' },
+
+        // 以下为新增全部商品
+        { id: 'bai_cao_now', name: '戚百草！就是现在！', category: 'clothes', price: 200, minLevel: 2, file: 'bai_cao_now' },
+        { id: 'strawberry_hairpin', name: '草莓发卡', category: 'hair', price: 50, minLevel: 2, file: 'strawberry_hairpin' },
+        { id: 'yellow_hairpin', name: '黄色发卡', category: 'hair', price: 10, minLevel: 2, file: 'yellow_hairpin' },
+        { id: 'green_hairpin', name: '绿色发卡', category: 'hair', price: 10, minLevel: 2, file: 'green_hairpin' },
+        { id: 'green_apple_scarf', name: '青苹果围巾', category: 'accessory', price: 30, minLevel: 2, file: 'green_apple_scarf' },
+        { id: 'red_apple_scarf', name: '红苹果围巾', category: 'accessory', price: 30, minLevel: 2, file: 'red_apple_scarf' },
+        { id: 'hero_sky', name: '豪情在天', category: 'clothes', price: 250, minLevel: 2, file: 'hero_sky' },
+        { id: 'konjac_snack', name: '魔芋爽我们喜欢你', category: 'clothes', price: 250, minLevel: 2, file: 'konjac_snack' },
+        { id: 'love_ice_tea', name: '挚爱冰红茶', category: 'clothes', price: 250, minLevel: 2, file: 'love_ice_tea' },
+        { id: 'wolf_warrior', name: '战狼', category: 'clothes', price: 299, minLevel: 2, file: 'wolf_warrior' },
+        { id: 'bright_future', name: '前程似锦', category: 'clothes', price: 99, minLevel: 2, file: 'bright_future' },
+        { id: 'scholar_cap', name: '扬帆学士帽', category: 'head', price: 66, minLevel: 2, file: 'scholar_cap' },
+        { id: 'diligent_student', name: '勤勤恳恳小学生', category: 'clothes', price: 100, minLevel: 2, file: 'diligent_student' },
+        { id: 'red_scarf', name: '红领巾', category: 'accessory', price: 10, minLevel: 2, file: 'red_scarf' },
+        { id: 'apple_knight', name: '苹果骑士', category: 'head', price: 100, minLevel: 2, file: 'apple_knight' },
+        { id: 'knight_shield', name: '骑士之盾', category: 'hand', price: 99, minLevel: 2, file: 'knight_shield' },
+        { id: 'king_crown', name: '国王的新冠', category: 'head', price: 100, minLevel: 2, file: 'king_crown' },
+        { id: 'cape', name: '披风', category: 'back', price: 99, minLevel: 2, file: 'cape' },
+        { id: 'apple_sword', name: '苹果在等待一把利剑', category: 'hand', price: 199, minLevel: 2, file: 'apple_sword' },
+        { id: 'angel_wings', name: '天使翅膀', category: 'back', price: 66, minLevel: 2, file: 'angel_wings' },
+        { id: 'cantonese_set', name: '广式特色套装', category: 'clothes', price: 300, minLevel: 2, file: 'cantonese_set' },
+        { id: 'double_bun', name: '萌萌双丸子头', category: 'head', price: 160, minLevel: 2, file: 'double_bun' },
+        { id: 'china_apple', name: '中华小苹果', category: 'clothes', price: 320, minLevel: 2, file: 'china_apple' },
+        { id: 'little_master', name: '厨神小当家', category: 'clothes', price: 300, minLevel: 2, file: 'little_master' },
+        { id: 'chef_compete', name: '厨王争霸', category: 'head', price: 100, minLevel: 2, file: 'chef_compete' },
+        { id: 'chef_weapon', name: '厨王专武', category: 'hand', price: 100, minLevel: 2, file: 'chef_weapon' },
+        { id: 'talisman_paper', name: '符纸', category: 'accessory', price: 66, minLevel: 2, file: 'talisman_paper' },
+        { id: 'dui_word', name: '兑！', category: 'hand', price: 100, minLevel: 2, file: 'dui_word' },
+        { id: 'wrong_you', name: '那你就错了', category: 'hand', price: 100, minLevel: 2, file: 'wrong_you' },
+        { id: 'banquet_guest', name: '赴过琼林宴', category: 'clothes', price: 350, minLevel: 2, file: 'banquet_guest' },
+        { id: 'ride_street', name: '打马御街前', category: 'head', price: 300, minLevel: 2, file: 'ride_street' },
+        { id: 'soldier_apple', name: '小兵苹果', category: 'head', price: 200, minLevel: 2, file: 'soldier_apple' },
+        { id: 'military_training', name: '军训中', category: 'clothes', price: 300, minLevel: 2, file: 'military_training' },
+        { id: 'red_round_glasses', name: '红色圆框眼镜', category: 'face', price: 50, minLevel: 2, file: 'red_round_glasses' },
+        { id: 'black_big_glasses', name: '黑色大圆框眼镜', category: 'face', price: 50, minLevel: 2, file: 'black_big_glasses' },
+        { id: 'single_side_glasses', name: '单边眼镜', category: 'face', price: 80, minLevel: 2, file: 'single_side_glasses' },
+{ id: 'devil_wings', name: '恶魔翅膀', category: 'back', price: 66, minLevel: 2, file: 'devil_wings' },
+        { id: 'apple_pirate', name: '苹果海盗', category: 'face', price: 100, minLevel: 2, file: 'apple_pirate' }
+    ];
+
+
+    //【修改分类映射，新增背饰、脸饰】
+
+    const CATEGORY_MAP = { head: '头饰', hair: '发饰', clothes: '衣服', hand: '手持物', accessory: '配饰', back:'背饰', face:'脸饰' };
+
+
+
+
+    
+
+
+
+
+    // --- 拖拽摇晃处理系统 ---
+
+
+
+
+    const dragState = {
+
+
+
+
+        isDragging: false, startX: 0, startY: 0, currentX: 0, currentY: 0, el: null,
+
+
+
+
+        shakeCounter: 0, lastPos: null, currentStage: 1, hasMovedSignificantly: false,
+
+
+
+
+        start(e) {
+
+
+
+
+            if(gameState.isDead || gameState.level < 2) return;
+
+
+
+
+            this.isDragging = true;
+
+
+
+
+            this.hasMovedSignificantly = false;
+
+
+
+
+            this.el = document.getElementById('apple-character');
+
+
+
+
+            const event = e.type === 'touchstart' ? e.touches[0] : e;
+
+
+
+
+            this.startX = event.clientX; this.startY = event.clientY;
+
+
+
+
+            this.el.classList.add('dragging');
+
+
+
+
+            this.currentStage = 1; this.shakeCounter = 0;
+
+
+
+
+            this.lastPos = { x: event.clientX, y: event.clientY };
+
+
+
+
+
+
+
+
+
+
+
+
+// 拖拽互动增加快乐值
+gameState.happy = Math.min(100, gameState.happy + 8);
+gameState.updateUI();
+gameState.saveProgress();
+            gameState.renderPet();
+
+
+
+
+            gameState.showBubble(`诶？${gameState.userName}为什么把我提起来`);
+
+
+
+
+            if (e.type === 'touchstart') {
+
+
+
+
+                document.ontouchmove = this.move.bind(this); document.ontouchend = this.end.bind(this);
+
+
+
+
+            } else {
+
+
+
+
+                document.onmousemove = this.move.bind(this); document.onmouseup = this.end.bind(this);
+
+
+
+
+            }
+
+
+
+
+        },
+
+
+
+
+        move(e) {
+
+
+
+
+            if (!this.isDragging) return; e.preventDefault();
+
+
+
+
+            const event = e.type === 'touchmove' ? e.touches[0] : e;
+
+
+
+
+            this.currentX = event.clientX - this.startX;
+
+
+
+
+            this.currentY = event.clientY - this.startY;
+
+
+
+
+            if (Math.abs(this.currentX) > 5 || Math.abs(this.currentY) > 5) {
+
+
+
+
+                this.hasMovedSignificantly = true;
+
+
+
+
+            }
+
+
+
+
+            this.el.style.transform = `translate(${this.currentX}px, ${this.currentY}px)`;
+
+
+
+
+            const currentPos = { x: event.clientX, y: event.clientY };
+
+
+
+
+            const distance = Math.sqrt(Math.pow(currentPos.x - this.lastPos.x, 2) + Math.pow(currentPos.y - this.lastPos.y, 2));
+
+
+
+
+            if (distance > 25) {
+
+
+
+
+                this.shakeCounter++;
+
+
+
+
+                this.lastPos = currentPos;
+
+
+
+
+                if (this.shakeCounter >= 8 && this.currentStage === 1) {
+
+
+
+
+                    this.currentStage = 2;
+
+
+
+
+                    gameState.renderPet();
+
+
+
+
+                    gameState.showBubble("好开心！像在树枝上一样！");
+
+
+
+
+                }
+
+
+
+
+                if (this.shakeCounter >= 38 && this.currentStage === 2) {
+
+
+
+
+                    this.currentStage = 3;
+
+
+
+
+                    gameState.renderPet();
+
+
+
+
+                    gameState.showBubble(`${gameState.userName}我感觉我有点晕……`);
+
+
+
+
+                }
+
+
+
+
+            }
+
+
+
+
+        },
+
+
+
+
+        end() {
+
+
+
+
+            if (!this.isDragging) return; this.isDragging = false;
+
+
+
+
+            this.el.classList.remove('dragging');
+
+
+
+
+            document.ontouchmove = document.ontouchend = document.onmousemove = document.onmouseup = null;
+
+
+
+
+            this.el.style.transition = 'transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+
+
+
+
+            this.el.style.transform = `translate(0px, 0px)`;
+
+
+
+
+            setTimeout(() => {
+
+
+
+
+                this.el.style.transition = 'transform 0.1s ease-out';
+
+
+
+
+                this.currentStage = 1; gameState.renderPet();
+
+
+
+
+            }, 500);
+
+
+
+
+        }
+
+
+
+
+    };
+
+
+
+
+    // --- 核心主生命数据管理系统【修改：生病改为上层贴图，不改动基础苹果原图】 ---
+
+
+
+
+    const gameState = {
+
+
+
+
+        hp: 60, happy: 70, hunger: 90, coins: 30, level: 0,
+
+
+
+
+        petName: "", userName: "", isDead: false, hasStarted: false,
+
+
+
+
+        blinkTimer: null, blinkFrame: 1,
+
+
+
+
+        ownedClothes: [],
+
+        //【新增back、face字段】
+
+        equippedClothes: { head: null, hair: null, clothes: null, hand: null, accessory: null, back:null, face:null },
+
+
+
+
+        previewClothes: { head: null, hair: null, clothes: null, hand: null, accessory: null, back:null, face:null },
+
+
+
+
+        currentLevelCorrectCount: 0,
+            // 需求4：持久化每一关已答对的单词ID，防止重复刷金币
+    stagePassedWords: {}, 
+    // 记录当前已解锁到第几关（顺序闯关用）
+    unlockStage: 1,
+        // ========== 背景配置 新增 ==========
+    currentBg: 0, // 当前选中背景编号 0=默认无自定义背景
+    // 背景列表：名称 + 图片文件名
+    bgList: [
+        { name: "温馨小家", file: "bg_home1.png" },
+        { name: "暮登天子堂", file: "bg_home2.png" },
+        { name: "苹果小生", file: "bg_home3.png" },
+        { name: "备战小升初", file: "bg_home4.png" },
+        { name: "出租屋文学", file: "bg_home5.png" }
+    ],
+    // ========== 背景配置结束 ==========
+            // ========== 新增：随机状态配置 ==========
+    // 所有可用状态 normal=常态(概率最高) sleep/read/think/proud/sticker/paint(画作3种)
+    randStatus: "normal",
+    // 画作子类型 1=素描 2=合照 3=love画
+    paintType: 1,
+    // 状态权重：数字越大出现概率越高（常态权重最大）
+    statusWeight: {
+        normal: 35,    // 常态站立 出现最多
+        sleep: 11,      // 睡觉
+        read: 11,       // 看书
+        think: 11,      // 思考
+        proud: 11,      // 得意洋洋
+        sticker: 11,    // 搞怪贴纸
+        paint: 11       // 展示画作
+    },
+    // 各状态对应气泡台词
+    statusTalk: {
+        sleep: ["zzz"],
+        read: [
+            "我也想变成BIG APPLE…",
+            "要努力学习${userName}那边的知识才行！"
+        ],
+        think: [
+            "苹果也要思考飞鸟思考风……才能成为一颗苹果树。",
+            "我以后也能砸中一个牛顿吗？我也能成为影响别人的苹果吗？"
+        ],
+        proud: [
+             "突然感觉果生好幸福！",
+             "我一定会是全世界最好的苹果˃̶ ꇴ ˂̶！"
+         ],
+        sticker: [
+            "不给你看^^",
+            "猜猜我是谁？"
+        ],
+        paint2: ["晴天、草地、${userName}、和${petName}！"],
+        paint1: ["最近本果感到绘画修为大涨！"],
+        paint3: ["我最近也有在学英语噢！"]
+    },
+    // 定时切换随机状态的定时器
+    randStatusTimer: null,
+    // 标记商城是否打开，true=商城打开，禁止随机状态
+isShopOpen: false,
+    // ========== 随机状态结束 ==========
+
+
+
+
+        init() {
+
+
+
+
+            const saved = localStorage.getItem('apple_v10_save');
+
+
+
+
+            if(saved) {
+
+
+
+
+                const parsed = JSON.parse(saved);
+
+
+
+
+                // 平滑兼容老版本 back 分类数据到新分类 accessory 中
+
+                if (parsed.equippedClothes && parsed.equippedClothes.back !== undefined && !parsed.equippedClothes.back_new) {
+
+                    //旧存档back保留到新back字段，不再并入配饰
+
+                    parsed.equippedClothes.back = parsed.equippedClothes.back;
+
+                    delete parsed.equippedClothes.back_new;
+
+                }
+
+
+
+
+                Object.assign(this, parsed);
+                // 兼容旧存档：初始化背景字段
+if (this.currentBg === undefined) this.currentBg = 0;
+// 兼容旧存档，初始化闯关进度
+if(!this.stagePassedWords) this.stagePassedWords = {};
+if(!this.unlockStage) this.unlockStage = 1;
+
+
+
+                this.previewClothes = { ...this.equippedClothes };
+
+
+
+
+                this.hasStarted = true;
+
+
+
+
+            }
+
+
+
+
+            if(!this.hasStarted) {
+
+
+
+
+                document.getElementById('onboarding').style.display = 'flex';
+
+
+
+
+                this.nextStoryPhase(1);
+
+
+
+
+            } else this.startGame();
+
+
+
+
+        },
+
+
+
+
+        nextStoryPhase(phase) {
+
+
+
+
+            document.getElementById('story-phase-1').style.display = phase === 1 ? 'block' : 'none';
+
+
+
+
+            document.getElementById('story-phase-2').style.display = phase === 2 ? 'block' : 'none';
+
+
+
+
+            document.getElementById('story-phase-3').style.display = phase === 3 ? 'block' : 'none';
+
+
+
+
+        },
+
+
+
+
+        finishOnboarding() {
+
+
+
+
+            const pName = document.getElementById('pet-name-input').value;
+
+
+
+
+            const uName = document.getElementById('user-name-input').value;
+
+
+
+
+            if(!pName || !uName) return alert("名字和称呼都要填哦。");
+
+
+
+
+            this.petName = pName; this.userName = uName; this.hasStarted = true;
+
+
+
+
+            document.getElementById('onboarding').style.display = 'none';
+
+
+
+
+            this.startGame();
+
+
+
+
+        },
+
+
+
+
+                       startGame() { 
+    this.updateUI(); 
+    this.renderPet();
+    this.renderBg(); // 加载背景
+    this.startBlinkSystem();
+    this.startRandStatusTimer(); // 启动随机状态
+    this.startTicker();          // 【新增】启动 快乐/饱腹/健康 自动衰减定时器
+},
+
+
+
+
+                getFrameImage() {
+            // 种子、花朵阶段 保持原图，不触发随机状态
+            if (this.level === 0) return 'seed.png';
+            if (this.level >= 1 && this.level < 2) return 'flower.png';
+            
+            const color = this.level < 5 ? 'green' : 'red';
+            // 死亡状态 优先腐烂图
+            if(this.isDead){
+                return color === 'green' ? 'apple_green_rot.png' : 'apple_red_rot.png';
+            }
+            // 拖拽状态：无论当前是什么随机状态，都切回拖拽立绘
+            if (dragState.isDragging) {
+                return `apple_${color}_lifted_${dragState.currentStage}.png`;
+            }
+
+            // 商城打开时强制固定常态立绘，不切换任何随机状态
+if (this.isShopOpen) {
+    if (this.blinkFrame === 1) return `apple_${color}_open.png`;
+    if (this.blinkFrame === 2) return `apple_${color}_half.png`;
+    return `apple_${color}_close.png`;
+}
+// ========== 新增：根据随机状态返回对应图片 ==========
+switch(this.randStatus){
+    case "sleep":
+        return `apple_${color}_sleep.png`;
+    case "read":
+        return `apple_${color}_read.png`;
+    case "think":
+        return `apple_${color}_think.png`;
+    case "paint":
+        return `apple_${color}_paint${this.paintType}.png`;
+    // 得意、搞怪贴纸：使用常态身体图，表情靠上层贴图叠加
+    case "proud":
+    case "sticker":
+    default:
+        if (this.blinkFrame === 1) return `apple_${color}_open.png`;
+        if (this.blinkFrame === 2) return `apple_${color}_half.png`;
+        return `apple_${color}_close.png`;
+}
+        },
+        //获取生病贴图
+        getSickImg(){
+            if(this.isDead) return '';
+            const color = this.level <5 ? 'green':'red';
+            //小病：hp>15且<=30；大病hp<=15
+            if(this.hp>15 && this.hp<=30){
+                return `apple_${color}_sick_small.png`;
+            }else if(this.hp>0 && this.hp<=15){
+                return `apple_${color}_sick_big.png`;
+            }
+            return '';
+        },
+
+
+
+
+        renderPet() {
+
+
+
+
+            const charEl = document.getElementById('apple-character');
+
+
+
+
+            const frameImg = this.getFrameImage();
+            const sickImg = this.getSickImg();
+
+
+
+
+            // 1.渲染基础身体
+            document.getElementById('layer-body').style.backgroundImage = `url('${frameImg}')`;
+            //渲染生病顶层图层
+            const sickLayer = document.getElementById('layer-sick');
+            sickLayer.style.backgroundImage = sickImg ? `url(${sickImg})` : 'none';
+
+            //商城预览生病图层
+            const stageSick = document.getElementById('stage-layer-sick');
+            if(stageSick) stageSick.style.backgroundImage = sickImg ? `url(${sickImg})` : 'none';
+
+
+
+// ========== 随机状态服饰规则（新版） ==========
+Object.keys(this.equippedClothes).forEach(category => {
+    const layerEl = document.getElementById(`layer-${category}`);
+    if (!layerEl) return;
+    const itemFile = this.equippedClothes[category];
+    const showAll = itemFile ? `url('${itemFile}.png')` : 'none';
+    // 1. 睡觉：全部服饰隐藏
+    if (this.randStatus === "sleep") {
+        layerEl.style.backgroundImage = "none";
+    }
+    // 2. 搞怪贴纸 / 看书：隐藏 发饰hair、脸饰face
+    else if (this.randStatus === "sticker" || this.randStatus === "read") {
+        if (category === "hair" || category === "face") {
+            layerEl.style.backgroundImage = "none";
+        } else {
+            layerEl.style.backgroundImage = showAll;
+        }
+    }
+    // 3. 得意proud / 常态 / 拖拽 / 思考 / 画作：全部服饰正常显示
+    else {
+        layerEl.style.backgroundImage = showAll;
+    }
+});
+// 控制得意表情、搞怪贴纸图层显示
+const proudLayer = document.getElementById('layer-proud');
+const stickerLayer = document.getElementById('layer-sticker');
+const color = this.level < 5 ? 'green' : 'red';
+// 生病状态：强制隐藏所有表情与随机图层
+ if(this.getSickImg() !== ''){
+     proudLayer.style.display = "none";
+     stickerLayer.style.display = "none";
+     return;
+ }
+// 先默认隐藏两个表情图层
+proudLayer.style.display = "none";
+stickerLayer.style.display = "none";
+proudLayer.style.backgroundImage = "none";
+stickerLayer.style.backgroundImage = "none";
+
+// 切换到【得意】状态：显示得意表情贴图
+if (this.randStatus === "proud") {
+    proudLayer.style.display = "block";
+    proudLayer.style.backgroundImage = `url(apple_${color}_proud.png)`;
+}
+// 切换到【搞怪贴纸】状态：显示贴纸贴图
+if (this.randStatus === "sticker") {
+    stickerLayer.style.display = "block";
+    stickerLayer.style.backgroundImage = `url(apple_${color}_sticker.png)`;
+}
+
+
+
+            
+
+
+
+
+            // 2. 联动渲染商城专属预览舞台立绘
+
+
+
+
+            const stageBody = document.getElementById('stage-layer-body');
+
+
+
+
+            if (stageBody) {
+
+
+
+
+                stageBody.style.backgroundImage = `url('${frameImg}')`;
+
+
+
+
+                Object.keys(this.previewClothes).forEach(category => {
+
+
+
+
+                    const stageLayerEl = document.getElementById(`stage-layer-${category}`);
+
+
+
+
+                    if (stageLayerEl) {
+
+
+
+
+                        const itemFile = this.previewClothes[category];
+
+
+
+
+                        stageLayerEl.style.backgroundImage = itemFile ? `url('${itemFile}.png')` : 'none';
+
+
+
+
+                    }
+
+
+
+
+                });
+
+
+
+
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+
+            // 基础状态滤镜同步
+
+
+
+
+            charEl.className = '';
+
+
+
+
+            const stageContainer = document.getElementById('shop-stage-apple-container');
+
+
+
+
+            if(stageContainer) stageContainer.className = 'shop-stage-apple';
+
+
+
+
+
+
+
+
+
+
+
+
+
+            if(this.isDead) {
+
+
+
+
+                charEl.classList.add('dead');
+
+
+
+
+                if(stageContainer) stageContainer.classList.add('dead');
+
+
+
+
+            } else {
+
+
+
+
+                               // 仅 常态/睡觉/看书/思考 开启果冻呼吸；其他状态关闭呼吸
+                const canBreath = ["normal", "sleep", "read", "think"];
+                if(!dragState.isDragging && canBreath.includes(this.randStatus)){
+                    charEl.classList.add('breathing');
+                }
+
+
+
+
+                if(stageContainer) stageContainer.classList.add('breathing');
+
+
+
+
+                if(this.happy < 30) {
+
+
+
+
+                    charEl.classList.add('depressed');
+
+
+
+
+                    if(stageContainer) stageContainer.classList.add('depressed');
+
+
+
+
+                }
+
+
+
+
+            }
+
+
+
+
+        },
+        // 渲染家园背景
+        renderBg() {
+            const bgLayer = document.getElementById('home-bg-layer');
+            // currentBg=0 显示默认点阵背景（清空自定义图）
+            if (this.currentBg === 0) {
+                bgLayer.style.backgroundImage = "none";
+            } else {
+                const bgItem = this.bgList[this.currentBg - 1];
+                bgLayer.style.backgroundImage = `url(${bgItem.file})`;
+            }
+        },
+
+
+
+        startBlinkSystem() {
+
+
+
+
+            if (this.isDead || this.level < 2) return;
+
+
+
+
+            if (this.blinkTimer) clearTimeout(this.blinkTimer);
+
+
+
+
+            const runBlinkAnimation = () => {
+
+
+
+
+                if(this.isDead || dragState.isDragging) {
+
+
+
+
+                    this.blinkTimer = setTimeout(runBlinkAnimation, 1000); return;
+
+
+
+
+                }
+
+
+
+
+                this.blinkFrame = 2; this.renderPet();
+
+
+
+
+                setTimeout(() => {
+
+
+
+
+                    this.blinkFrame = 3; this.renderPet();
+
+
+
+
+                    setTimeout(() => {
+
+
+
+
+                        this.blinkFrame = 2; this.renderPet();
+
+
+
+
+                        setTimeout(() => {
+
+
+
+
+                            this.blinkFrame = 1; this.renderPet();
+
+
+
+
+                            this.blinkTimer = setTimeout(runBlinkAnimation, Math.random() * 2000 + 250);
+
+
+
+
+                        }, 50);
+
+
+
+
+                    }, 110);
+
+
+
+
+                }, 50);
+
+
+
+
+            };
+
+
+
+
+            this.blinkTimer = setTimeout(runBlinkAnimation, 3000);
+
+
+
+
+        },
+
+
+
+
+     startTicker() {
+    setInterval(() => {
+        if(this.isDead) return;
+        // 快乐值、饱腹值 随时间自然下降
+        this.happy = Math.max(0, this.happy - 1);
+        this.hunger = Math.max(0, this.hunger - 1);
+
+        // 快乐值过低 → 扣健康
+        if (this.happy <= 20) {
+            this.hp = Math.max(0, this.hp - 2);
+        }
+        // 饱腹值过低 → 扣健康
+        if (this.hunger <= 20) {
+            this.hp = Math.max(0, this.hp - 3);
+        }
+
+        // 健康归0 死亡
+        if (this.hp <= 0) {
+            this.hp = 0;
+            this.isDead = true;
+            if(this.blinkTimer) clearTimeout(this.blinkTimer);
+            if(this.randStatusTimer) clearInterval(this.randStatusTimer);
+        }
+        this.updateUI(); 
+        this.saveProgress(); 
+        this.renderPet();
+    }, 10000);
+},
+                // ========== 新增：随机状态切换逻辑 ==========
+        startRandStatusTimer() {
+            // 先清空旧定时器
+            if(this.randStatusTimer) clearInterval(this.randStatusTimer);
+            const self = this;
+            // 每 12 秒切换一次状态（可自行改数字，单位：毫秒）
+           this.randStatusTimer = setInterval(() => {
+    // ========== 生病/死亡/等级不足：强制关闭所有随机状态 ==========
+    if(self.isDead || self.level < 2 || self.getSickImg() !== '') {
+        // 生病时 强制切回常态，清空得意/贴纸等状态
+        self.randStatus = "normal";
+        self.renderPet();
+        return;
+    }
+                // 1. 根据权重随机选择状态
+                const weightList = [];
+                Object.keys(self.statusWeight).forEach(key => {
+                    const num = self.statusWeight[key];
+                    for(let i=0; i<num; i++){
+                        weightList.push(key);
+                    }
+                });
+                const randomIdx = Math.floor(Math.random() * weightList.length);
+                self.randStatus = weightList[randomIdx];
+
+                // 2. 如果是画作状态，再随机选一张画(1/2/3)
+                if(self.randStatus === "paint"){
+                    self.paintType = Math.floor(Math.random() * 3) + 1;
+                }
+
+                // 3. 刷新立绘
+                self.renderPet();
+
+                // 4. 随机弹出对应台词（常态不说话）
+                if(self.randStatus !== "normal"){
+                    let talkArr = [];
+                    let talkKey = self.randStatus;
+                    // 画作区分3种文案
+                    if(self.randStatus === "paint"){
+                        talkKey = "paint" + self.paintType;
+                    }
+                    talkArr = self.statusTalk[talkKey] || [];
+                    if(talkArr.length > 0){
+                        const talkIdx = Math.floor(Math.random() * talkArr.length);
+                        let text = talkArr[talkIdx];
+                        // 替换占位昵称、名字
+                        text = text.replace(/\${userName}/g, self.userName);
+                        text = text.replace(/\${petName}/g, self.petName);
+                        self.showBubble(text);
+                    }
+                }
+            }, 12000);
+        },
+        // ========== 随机状态结束 ==========
+
+
+
+
+                      feed() {
+            if(this.isDead) return;
+            
+            // 新增：种子、花朵阶段禁止喂食
+            if(this.level < 2){
+                this.showBubble("现在还不能喂食哦，先努力闯关长大吧！");
+                return;
+            }
+
+            // 获取喂食图层
+            const eatLayer = document.getElementById('layer-eat');
+            if(this.coins >= 10) {
+                this.coins -= 10; 
+                this.hunger = Math.min(100, this.hunger + 30); 
+                this.showBubble("真好味~");
+
+                // ========== 喂食表情生效 ==========
+                eatLayer.style.backgroundImage = "url('eat.png')";
+                eatLayer.style.display = "block";
+                // 3秒后自动隐藏表情
+                setTimeout(() => {
+                    eatLayer.style.display = "none";
+                    eatLayer.style.backgroundImage = "none";
+                }, 3000);
+                // =================================
+            } else {
+                this.showBubble("金币不够买食物了...");
+            }
+            this.updateUI(); 
+            this.renderPet();
+        },
+
+
+
+
+        passLevel() {
+
+
+
+
+            if(this.isDead) return;
+
+
+
+
+            this.level++; this.coins += 50; this.happy = Math.min(100, this.happy + 20);
+
+
+
+
+            this.showBubble(`闯关成功！当前力量：Lv.${this.level}`);
+
+
+
+
+            this.renderPet(); this.updateUI(); this.saveProgress();
+
+
+
+
+            if(this.level === 2) this.startBlinkSystem();
+
+
+
+
+        },
+
+
+
+
+        showBubble(text) { const b = document.getElementById('chat-bubble'); b.innerText = text; b.style.display = 'block'; setTimeout(() => b.style.display = 'none', 6000); },
+
+
+
+
+        updateUI() {
+
+
+
+
+            document.getElementById('hp-bar').style.width = this.hp + '%'; document.getElementById('happy-bar').style.width = this.happy + '%';
+
+
+
+
+            document.getElementById('hunger-bar').style.width = this.hunger + '%'; document.getElementById('coin-count').innerText = Math.floor(this.coins);
+
+
+
+
+        },
+
+
+
+
+               saveProgress() {
+    localStorage.setItem('apple_v10_save', JSON.stringify({
+        hp: this.hp, happy: this.happy, hunger: this.hunger, coins: this.coins,
+        level: this.level, petName: this.petName, userName: this.userName,
+        hasStarted: this.hasStarted, ownedClothes: this.ownedClothes,
+        equippedClothes: this.equippedClothes, currentLevelCorrectCount: this.currentLevelCorrectCount,
+        stagePassedWords: this.stagePassedWords,
+        unlockStage: this.unlockStage,
+        currentBg: this.currentBg,
+        bgList: this.bgList,
+    }));
+},
+
+
+
+
+              reset() { 
+    if(confirm("确定要重置吗？我们的记忆都会消失哦。")) { 
+        if(this.blinkTimer) clearTimeout(this.blinkTimer);
+        if(this.randStatusTimer) clearInterval(this.randStatusTimer);
+        this.isShopOpen = false; // 重置商城标记
+        localStorage.clear(); 
+        location.reload(); 
+    } 
+}
+
+
+
+
+    };
+
+
+
+
+    
+
+
+
+
+    // --- 极简亚风商城控制模块【商品双层预览框不变】 ---
+
+
+
+
+    const shopSystem = {
+
+
+
+
+        currentTab: 'head',
+
+
+
+
+              openShop() {
+    // 进入试衣间：强制切回常态，关闭所有随机状态
+    gameState.isShopOpen = true; // 标记商城已打开
+    gameState.randStatus = "normal";
+    gameState.renderPet();
+    if (gameState.isDead) return alert("小苹果已经去世，请先点击重置游戏。");
+    
+    // 新增：种子、花朵阶段禁止打开商城
+    if(gameState.level < 2){
+        alert("现在还不能进入商城，先闯关让它长大吧！");
+        gameState.isShopOpen = false; // 取消商城标记
+        return;
+    }
+    document.getElementById('shop-modal').style.display = 'flex';
+    // 进入商城时，让预览试穿图层状态完全复刻目前已穿上的衣服
+    gameState.previewClothes = { ...gameState.equippedClothes };
+    gameState.renderPet();
+    this.renderTabs();
+    this.renderItems();
+},
+
+
+
+
+      closeShop() {
+    gameState.isShopOpen = false; // 标记商城已关闭，恢复随机状态
+    document.getElementById('shop-modal').style.display = 'none';
+    // 离开商城时，清空试穿状态，重新渲染最纯正的主场景立绘
+    gameState.previewClothes = { ...gameState.equippedClothes };
+    gameState.renderPet();
+},
+
+
+
+
+        renderTabs() {
+
+
+
+
+            const container = document.getElementById('shop-tabs-container');
+
+
+
+
+            container.innerHTML = Object.keys(CATEGORY_MAP).map(key => `
+
+
+
+
+                <div class="tab-btn ${this.currentTab === key ? 'active' : ''}" onclick="shopSystem.switchTab('${key}')">
+
+
+
+
+                    ${CATEGORY_MAP[key]}
+
+
+
+
+                </div>
+
+
+
+
+            `).join('');
+
+
+
+
+        },
+
+
+
+
+        switchTab(category) {
+
+
+
+
+            this.currentTab = category;
+
+
+
+
+            this.renderTabs();
+
+
+
+
+            this.renderItems();
+
+
+
+
+        },
+
+
+
+
+        renderItems() {
+
+
+
+
+            const listContainer = document.getElementById('shop-item-list');
+
+
+
+
+            const filteredItems = SHOP_DATABASE.filter(i => i.category === this.currentTab);
+
+
+
+
+            if(filteredItems.length === 0) {
+
+
+
+
+                listContainer.innerHTML = `<div style="text-align:center; color:#999; font-size:12px; padding-top:30px; font-weight:bold;">该分类下暂无新品上架</div>`;
+
+
+
+
+                return;
+
+
+
+
+            }
+
+
+
+
+            listContainer.innerHTML = filteredItems.map(item => {
+
+
+
+
+                const isOwned = gameState.ownedClothes.includes(item.id);
+
+
+
+
+                const isEquipped = gameState.equippedClothes[item.category] === item.file;
+
+
+
+
+                const isPreviewing = gameState.previewClothes[item.category] === item.file;
+
+
+
+
+                
+
+
+
+
+                let btnText = `购买 (${item.price}💰)`;
+
+
+
+
+                let btnClass = "";
+
+
+
+
+                
+
+
+
+
+                if (isOwned) {
+
+
+
+
+                    btnText = isEquipped ? "脱下" : "穿上";
+
+
+
+
+                    if (isEquipped) btnClass = "owned";
+
+
+
+
+                } else if (isPreviewing) {
+
+
+
+
+                    btnText = "购买此试穿件";
+
+
+
+
+                    btnClass = "previewing";
+
+
+
+
+                }
+
+
+
+
+                
+
+
+
+
+                const lockText = gameState.level < item.minLevel ? `<span style="font-size:10px; color:#999; font-weight:normal;">🔒 Lv.${item.minLevel}解锁</span>` : '';
+
+
+
+
+                return `
+
+
+
+
+                    <div class="shop-item" onclick="shopSystem.previewItem('${item.id}')">
+                        <div class="item-thumb">
+                            <div class="item-thumb-inner" style="background-image:url('${item.file}.png')"></div>
+                        </div>
+                        <div class="item-info">
+
+
+
+
+                            <div class="item-name">${item.name} ${lockText}</div>
+
+
+
+
+                            <div class="item-price">${isOwned ? '✨ 已拥有' : item.price + ' 金币'}</div>
+
+
+
+
+                        </div>
+
+
+
+
+                        <button class="shop-btn ${btnClass}" ${gameState.level < item.minLevel && !isOwned ? 'disabled style="background:#ccc; border-color:#aaa;"' : ''} onclick="shopSystem.handleAction(event, '${item.id}')">
+
+
+
+
+                            ${btnText}
+
+
+
+
+                        </button>
+
+
+
+
+                    </div>
+
+
+
+
+                `;
+
+
+
+
+            }).join('');
+
+
+
+
+        },
+
+
+
+
+        previewItem(itemId) {
+
+
+
+
+            const item = SHOP_DATABASE.find(i => i.id === itemId);
+
+
+
+
+            if(!item) return;
+
+
+
+
+            // 点击整行触发左侧小苹果在试衣间试穿/脱下切换
+
+
+
+
+            if (gameState.previewClothes[item.category] === item.file) {
+
+
+
+
+                gameState.previewClothes[item.category] = null;
+
+
+
+
+            } else {
+
+
+
+
+                gameState.previewClothes[item.category] = item.file;
+
+
+
+
+            }
+
+
+
+
+            gameState.renderPet();
+
+
+
+
+            this.renderItems();
+
+
+
+
+        },
+
+
+
+
+        handleAction(event, itemId) {
+
+
+
+
+            event.stopPropagation(); // 阻止触发整行试穿
+
+
+
+
+            const item = SHOP_DATABASE.find(i => i.id === itemId);
+
+
+
+
+            if(!item) return;
+
+
+
+
+            const isOwned = gameState.ownedClothes.includes(item.id);
+
+
+
+
+            if (isOwned) {
+
+
+
+
+                // 已拥有的情况下，穿上/脱下会直接改变最终配备属性
+
+
+
+
+                if (gameState.equippedClothes[item.category] === item.file) {
+
+
+
+
+                    gameState.equippedClothes[item.category] = null;
+
+
+
+
+                } else {
+
+
+
+
+                    gameState.equippedClothes[item.category] = item.file;
+
+
+
+
+                }
+
+
+
+
+                gameState.previewClothes = { ...gameState.equippedClothes };
+
+
+
+
+            } else {
+
+
+
+
+                // 未拥有的情况点击进行正式购买交易
+
+
+
+
+                if (gameState.coins < item.price) {
+
+
+
+
+                    gameState.showBubble("金币不足，快去测试闯关赚钱吧！");
+
+
+
+
+                    return;
+
+
+
+
+                }
+
+
+
+
+                gameState.coins -= item.price;
+
+
+
+
+                gameState.ownedClothes.push(item.id);
+
+
+
+
+                gameState.equippedClothes[item.category] = item.file;
+
+
+
+
+                gameState.previewClothes = { ...gameState.equippedClothes };
+
+
+
+
+                gameState.showBubble(`成功换装【${item.name}】！`);
+// 购入新服饰，快乐值提升
+gameState.happy = Math.min(100, gameState.happy + 15);
+
+
+
+            }
+
+
+
+
+            gameState.renderPet();
+
+
+
+
+            gameState.updateUI();
+
+
+
+
+            gameState.saveProgress();
+
+
+
+
+            this.renderItems();
+
+
+
+
+        }
+
+
+
+
+    };
+
+
+
+
+    gameState.init();
+
+
+
+
+</script>
+
+
+
+
+<script>
+
+
+
+
+    // 挂载动态菜单导航控制
+
+
+
+
+    setTimeout(() => {
+
+
+
+
+        const navButtons = document.querySelectorAll('.nav-bar .nav-btn');
+
+
+
+
+        if (navButtons && navButtons[1]) {
+
+
+
+
+            navButtons[1].innerText = "核心闯关";
+
+
+
+
+            navButtons[1].setAttribute("onclick", "stageSystem.openStageFlow('challenge')");
+
+
+
+
+            const reviewBtn = document.createElement('div');
+
+
+
+
+            reviewBtn.className = 'nav-btn';
+
+
+
+
+            reviewBtn.style.background = 'var(--primary-green)';
+
+
+
+
+            reviewBtn.style.color = 'white';
+
+
+
+
+            reviewBtn.innerText = '每日复习';
+
+
+
+
+           reviewBtn.setAttribute('onclick', "stageSystem.openReviewSelect()");
+
+
+
+
+            navButtons[1].parentNode.insertBefore(reviewBtn, navButtons[2]);
+
+
+
+
+        }
+
+
+
+
+    }, 100);
+
+
+
+
+    const STAGE_DATABASE = {
+    // ========== 第1关（原有保留） ==========
+    1: {
+        img: '1.jpg',
+        words: [
+            { id: 'cam', name: '监控摄像头', en: 'security camera', phonetic: '/sɪˈkjʊrəti ˈkæmrə/', top: '33%', left: '20%' },
+            { id: 'lock', name: '快递柜', en: 'parcel locker', phonetic: '/ˈpɑːrsl ˈlɑːkər/', top: '62%', left: '20%' },
+            { id: 'send', name: '寄快递', en: 'send a package', phonetic: '/send ə ˈpækɪdʒ/', top: '71%', left: '50%' },
+            { id: 'pick', name: '取快递', en: 'pick up a package', phonetic: '/pɪk ʌp ə ˈpækɪdʒ/', top: '62%', left: '50%' },
+            { id: 'bike', name: '电动车', en: 'electric bike', phonetic: '/ɪˈlektrɪk baɪk/', top: '86%', left: '75%' },
+            { id: 'fence', name: '围栏', en: 'fence', phonetic: '/fens/', top: '53%', left: '75%' }
+        ]
+    },
+
+    // ========== 第2关（待填充） ==========
+    2: {
+    img: '2.jpg',
+    words: [
+        { id: 'medical', name: '医学院', en: 'medical school', phonetic: '/ˈmedɪkl skuːl/', top: '10%', left: '60%' },
+        { id: 'banner', name: '横幅', en: 'banner', phonetic: '/ˈbænər/', top: '37%', left: '48%' },
+        { id: 'hang', name: '挂横幅', en: 'hang a banner', phonetic: '/hæŋ ə ˈbænər/', top: '34%', left: '14%' },
+        { id: 'streetlight', name: '路灯', en: 'streetlight', phonetic: '/ˈstriːtlaɪt/', top: '59%', left: '38%' },
+        { id: 'speedbump', name: '减速带', en: 'speed bump', phonetic: '/ˈspiːd bʌmp/', top: '56%', left: '9%' },
+        { id: 'soil', name: '泥土', en: 'soil', phonetic: '/sɔɪl/', top: '71%', left: '70%' },
+        { id: 'crosswalk', name: '斑马线', en: 'crosswalk', phonetic: '/ˈkrɔːswɔːk/', top: '71%', left: '5%' }
+    ]
+},
+
+    // ========== 第3关（待填充） ==========
+   3: {
+    img: '3.jpg',
+    words: [
+        { id: 'sponge', name: '海绵', en: 'sponge', phonetic: '/spʌndʒ/', top: '17%', left: '10%' },
+        { id: 'broom', name: '扫把', en: 'broom', phonetic: '/bruːm/', top: '32%', left: '25%' },
+        { id: 'mindhead', name: '小心碰头', en: 'Mind your head', phonetic: '/maɪnd jɔːr hed/', top: '37%', left: '72%' },
+        { id: 'mop', name: '拖把', en: 'mop', phonetic: '/mɑːp/', top: '51%', left: '53%' },
+        { id: 'hanger', name: '衣架', en: 'hanger', phonetic: '/ˈhæŋər/', top: '64%', left: '5%' },
+        { id: 'mopfloor', name: '拖地', en: 'mop the floor', phonetic: '/mɑːp ðə flɔːr/', top: '69%', left: '60%' }
+    ]
+},
+
+    // ========== 第4关（待填充） ==========
+    4: {
+    img: '4.jpg',
+    words: [
+        { id: 'mattress', name: '床垫', en: 'mattress', phonetic: '/ˈmætrəs/', top: '5%', left: '23%' },
+        { id: 'blanket', name: '毛毯', en: 'blanket', phonetic: '/ˈblæŋkɪt/', top: '27%', left: '27%' },
+        { id: 'towel', name: '毛巾', en: 'towel', phonetic: '/ˈtaʊəl/', top: '37%', left: '13%' },
+        { id: 'sanitarypad', name: '卫生巾', en: 'sanitary pad', phonetic: '/ˈsænɪteri pæd/', top: '40%', left: '55%' },
+        { id: 'slippers', name: '拖鞋', en: 'slippers', phonetic: '/ˈslɪpərz/', top: '49%', left: '10%' },
+        { id: 'pot', name: '锅', en: 'pot', phonetic: '/pɑːt/', top: '60%', left: '28%' },
+        { id: 'hairdryer', name: '吹风机', en: 'hairdryer', phonetic: '/ˈherdraɪər/', top: '83%', left: '5%' },
+        { id: 'basin', name: '盆', en: 'basin', phonetic: '/ˈbeɪsn/', top: '89%', left: '35%' }
+    ]
+},
+
+    // ========== 第5关（待填充） ==========
+   5: {
+         img: '5.jpg',
+         words: [
+             { id: 'toiletpaper', name: '卷纸', en: 'toilet paper', phonetic: '/ˈtɔɪlət ˈpeɪpər/', top: '14%', left: '38%' },
+             { id: 'mouthwash', name: '漱口水', en: 'mouthwash', phonetic: '/ˈmaʊθwɔːʃ/', top: '25%', left: '13%' },
+             { id: 'toothpaste', name: '牙膏', en: 'toothpaste', phonetic: '/ˈtuːθpeɪst/', top: '38%', left: '7%' },
+             { id: 'penrefill', name: '笔芯', en: 'pen refill', phonetic: '/ˈpen ˈriːfɪl/', top: '35%', left: '50%' },
+             { id: 'dishwashingliquid', name: '洗洁精', en: 'dishwashing liquid', phonetic: '/ˈdɪʃwɒʃɪŋ ˈlɪkwɪd/', top: '52%', left: '30%' },
+             { id: 'washingpowder', name: '洗衣粉', en: 'washing powder', phonetic: '/ˈwɑːʃɪŋ ˈpaʊdər/', top: '70%', left: '18%' },
+             { id: 'filefolder', name: '档案袋', en: 'file folder', phonetic: '/ˈfaɪl ˈfoʊldər/', top: '75%', left: '68%' },
+             { id: 'toiletcleaner', name: '厕所清洁剂', en: 'toilet cleaner', phonetic: '/ˈtɔɪlət ˈkliːnər/', top: '90%', left: '26%' }
+         ]
+     }
+ };
+
+
+
+
+    // --- 核心闯关复习控制系统 ---
+
+
+
+
+   const stageSystem = {
+    currentMode: 'challenge',
+    currentStageId: 1,
+    selectedWord: null,
+    passedWords: [],
+    // 从本地存储读取每日复习次数，没有则初始化为空对象
+    reviewCounts: JSON.parse(localStorage.getItem('apple_review_count')) || {},
+    recognition: null,
+    // 需求3：复习模式 → 选择已解锁关卡
+openReviewSelect(){
+    if(gameState.isDead) return alert("小苹果已经去世，请先点击重置游戏。");
+    if(gameState.unlockStage === 1 && gameState.level < 1){
+        alert("你还没有让种子发芽呢，快去挑战核心闯关吧！");
+        return;
+    }
+    let html = `<div style="position:fixed;inset:0;background:rgba(0,0,0.5);z-index:300;display:flex;justify-content:center;align-items:center;" onclick="this.remove()">
+        <div style="background:var(--cream-bg);border:5px solid var(--border-color);border-radius:20px;padding:25px;width:80%;max-width:300px;box-shadow:6px 6px 0 var(--oat-accent);" onclick="event.stopPropagation()">
+            <div style="text-align:center;font-weight:bold;color:var(--border-color);font-size:16px;margin-bottom:20px;">📖 选择复习关卡</div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">`;
+    // 只展示【已解锁】的关卡
+    for(let i=1; i<=gameState.unlockStage; i++){
+        html += `<div class="level-item" onclick="stageSystem.startReview(${i})">第${i}关</div>`;
+    }
+    html += `</div>
+        <button class="level-close" style="margin-top:20px;width:100%;" onclick="this.parentElement.parentElement.remove()">关闭</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+},
+// 选中关卡，进入复习模式
+startReview(levelNum){
+    this.currentStageId = levelNum;
+    // 移除弹窗
+    document.querySelector('[style*="z-index:300"]')?.remove();
+    this.openStageFlow('review');
+},
+       
+
+
+
+        initSpeech() {
+
+
+
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+
+
+
+            if (SpeechRecognition) {
+
+
+
+
+                this.recognition = new SpeechRecognition();
+
+
+
+
+                this.recognition.lang = 'en-US';
+
+
+
+
+                this.recognition.interimResults = false;
+
+
+
+
+                this.recognition.maxAlternatives = 1;
+
+
+
+
+                this.recognition.continuous = false;
+
+
+
+
+            }
+
+
+
+
+        },
+
+
+
+
+       openStageFlow(mode) {
+    if (gameState.isDead) return alert("小苹果已经去世，请先点击重置游戏。");
+    this.currentMode = mode;
+    this.initSpeech();
+   const todayStr = new Date().toISOString().split('T')[0];
+// 需求2：核心闯关 只能闯【当前解锁关卡】
+if(mode === 'challenge'){
+    this.currentStageId = gameState.unlockStage;
+}
+const reviewKey = `${todayStr}_stage${this.currentStageId}`;
+// 强制初始化：当天该关卡次数不存在则置为0
+if (this.reviewCounts[reviewKey] === undefined) {
+    this.reviewCounts[reviewKey] = 0;
+}
+if (mode === 'challenge') {
+    document.getElementById('stage-title').innerText = `🎯 核心闯关 · 第 ${this.currentStageId} 关`;
+} else {
+    if (gameState.level < 1) {
+        alert("你还没有让种子发芽呢，快去挑战核心闯关吧！");
+        return;
+    }
+    // 今日次数≥2 直接拦截
+    if (this.reviewCounts[reviewKey] >= 2) {
+        alert("太勤奋了！这节关卡今日整体复习次数已达 2 次上限，明天再来吧！");
+        return;
+    }
+    document.getElementById('stage-title').innerText = `🔄 日常复习 · 第 ${this.currentStageId} 关 (今日已复习:${this.reviewCounts[reviewKey]}/2)`;
+}
+
+
+
+
+          // 区分模式：闯关读取永久答对单词，复习清空允许重复练习
+if (this.currentMode === 'challenge') {
+    // 闯关模式：读取永久记录，防止重复刷金币
+    this.passedWords = gameState.stagePassedWords[this.currentStageId] || [];
+} else {
+    // 复习模式：清空已完成单词，可重复复习
+    this.passedWords = [];
+}
+
+
+
+
+            this.selectedWord = null;
+
+
+
+
+            document.getElementById('stage-modal').style.display = 'flex';
+
+
+
+
+            this.renderHotspots();
+
+
+
+
+            this.resetPanel();
+// 动态加载对应关卡图片
+document.getElementById('stage-bg-img').src = "./" + this.currentStageId + ".jpg";
+
+
+
+        },
+
+
+
+
+        closeStage() {
+
+
+
+
+            document.getElementById('stage-modal').style.display = 'none';
+
+
+
+
+            if(this.recognition) { try { this.recognition.stop(); } catch(e){} }
+
+
+
+
+        },
+
+
+
+
+        renderHotspots() {
+
+
+
+
+            const container = document.getElementById('stage-hotspots');
+
+
+
+
+            container.innerHTML = '';
+
+
+
+
+            const stageData = STAGE_DATABASE[this.currentStageId];
+
+
+
+
+            stageData.words.forEach(word => {
+
+
+
+
+                const isDone = this.passedWords.includes(word.id);
+
+
+
+
+                const label = document.createElement('div');
+
+
+
+
+                label.innerText = word.name + (isDone ? ' ✅' : '');
+
+
+
+
+                label.style.position = 'absolute';
+
+
+
+
+                label.style.top = word.top;
+
+
+
+
+                label.style.left = word.left;
+
+
+
+
+                label.style.padding = '6px 12px';
+
+
+
+
+                label.style.background = isDone ? '#E2F0D9' : '#FFF2CC';
+
+
+
+
+                label.style.border = '2px solid var(--border-color)';
+
+
+
+
+                label.style.borderRadius = '10px';
+
+
+
+
+                label.style.boxShadow = '2px 2px 0px var(--border-color)';
+
+
+
+
+                label.style.fontSize = '12px';
+
+
+
+
+                label.style.fontWeight = 'bold';
+
+
+
+
+                label.style.color = 'var(--border-color)';
+
+
+
+
+                label.style.cursor = 'pointer';
+
+
+
+
+                label.style.pointerEvents = 'auto';
+
+
+
+
+                label.style.transform = 'translate(-50%, -50%)';
+
+
+
+
+                label.style.whiteSpace = 'nowrap';
+
+
+
+
+                label.onclick = () => this.selectWord(word);
+
+
+
+
+                container.appendChild(label);
+
+
+
+
+            });
+
+
+
+
+        },
+
+
+
+
+        resetPanel() {
+
+
+
+
+            document.getElementById('panel-prompt').innerText = "💡 请点击图中的黄色标签，开启单词挑战！";
+
+
+
+
+            document.getElementById('panel-actions').innerHTML = '';
+
+
+
+
+            document.getElementById('panel-result').style.display = 'none';
+
+
+
+
+        },
+
+
+
+
+        selectWord(word) {
+
+
+
+
+            if (this.passedWords.includes(word.id)) {
+
+
+
+
+                this.selectedWord = word;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `✨ 已掌握词汇：【${word.name}】`;
+
+
+
+
+                document.getElementById('panel-actions').innerHTML = `<button onclick="stageSystem.resetPanel()" style="background: white; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer;">选择其他单词</button>`;
+
+
+
+
+                return;
+
+
+
+
+            }
+
+
+
+
+            this.selectedWord = word;
+
+
+
+
+            document.getElementById('panel-result').style.display = 'none';
+
+
+
+
+            document.getElementById('panel-prompt').innerText = `正在挑战：【${word.name}】—— 请选择你的作答方式：`;
+
+
+
+
+            const actionsContainer = document.getElementById('panel-actions');
+
+
+
+
+            actionsContainer.innerHTML = `
+
+
+
+
+                <button onclick="stageSystem.triggerAction('record')" style="background: #E2EFDA; border: 2px solid var(--border-color); padding: 10px 18px; border-radius: 12px; font-weight: bold; box-shadow: 0 4px 0 var(--border-color); cursor: pointer;">🎙️ 录音读词</button>
+
+
+
+
+                <button onclick="stageSystem.triggerAction('spell')" style="background: #FFF2CC; border: 2px solid var(--border-color); padding: 10px 18px; border-radius: 12px; font-weight: bold; box-shadow: 0 4px 0 var(--border-color); cursor: pointer;">✏️ 拼写挑战</button>
+
+
+
+
+                <button onclick="stageSystem.triggerAction('skip')" style="background: #F2F2F2; border: 2px solid var(--border-color); padding: 10px 18px; border-radius: 12px; font-weight: bold; box-shadow: 0 4px 0 var(--border-color); cursor: pointer;">⏩ 跳过此词</button>
+
+
+
+
+            `;
+
+
+
+
+        },
+
+
+
+
+        triggerAction(type) {
+
+
+
+
+            const word = this.selectedWord;
+
+
+
+
+            const actionsContainer = document.getElementById('panel-actions');
+
+
+
+
+            if (type === 'record') {
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `🎙️ 录音中... 请清晰读出【${word.name}】的英文：`;
+
+
+
+
+                actionsContainer.innerHTML = `
+
+
+
+
+                    <button id="mic-btn" onclick="stageSystem.startListening()" style="background: var(--apple-red); color: white; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer;">点击开始录音</button>
+
+
+
+
+                    <button id="stop-mic-btn" onclick="stageSystem.stopListeningActive()" style="background: var(--primary-green); color: white; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; display:none;">说完了，点此结束录音</button>
+
+
+
+
+                    <button onclick="stageSystem.verifyRecord(true)" style="background: #FFE4C4; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer;">[测试点此] 模拟读对</button>
+
+
+
+
+                    <button onclick="stageSystem.selectWord(stageSystem.selectedWord)" style="background: white; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer;">返回</button>
+
+
+
+
+                `;
+
+
+
+
+            } else if (type === 'spell') {
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `✏️ 请在下方输入【${word.name}】的英文拼写：`;
+
+
+
+
+                actionsContainer.innerHTML = `
+
+
+
+
+                    <input type="text" id="spell-input" placeholder="请输入英文拼写..." style="width: 70%; padding: 8px; border: 2px solid var(--border-color); border-radius: 10px; margin-bottom: 5px;">
+
+
+
+
+                    <div style="display:flex; gap: 10px; justify-content:center; width:100%;">
+
+
+
+
+                        <button onclick="stageSystem.verifySpell()" style="background: var(--primary-green); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">提交拼写</button>
+
+
+
+
+                        <button onclick="stageSystem.selectWord(stageSystem.selectedWord)" style="background: white; border: 2px solid var(--border-color); padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer;">返回</button>
+
+
+
+
+                    </div>
+
+
+
+
+                `;
+
+
+
+
+                document.getElementById('spell-input').focus();
+
+
+
+
+            } else if (type === 'skip') {
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `⏩ 已选择跳过，请记住它的标准发音与音标：`;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                actionsContainer.innerHTML = `
+
+
+
+
+                    <button onclick="stageSystem.selectWord(stageSystem.selectedWord)" style="background: var(--apple-red); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">再次尝试挑战</button>
+
+
+
+
+                `;
+
+
+
+
+            }
+
+
+
+
+        },
+
+
+
+
+        startListening() {
+
+
+
+
+            if (!this.recognition) {
+
+
+
+
+                alert("您的浏览器或硬件暂不支持直接语音识别，请点击旁边的【模拟读对】进行功能调试体验。");
+
+
+
+
+                return;
+
+
+
+
+            }
+
+
+
+
+            const btn = document.getElementById('mic-btn');
+
+
+
+
+            const stopBtn = document.getElementById('stop-mic-btn');
+
+
+
+
+            btn.style.display = "none";
+
+
+
+
+            if(stopBtn) stopBtn.style.display = "inline-block";
+
+
+
+
+
+
+
+
+
+
+
+
+
+            try {
+
+
+
+
+                this.recognition.start();
+
+
+
+
+            } catch(e) {
+
+
+
+
+                console.log("录音引擎启动中或已启动");
+
+
+
+
+            }
+
+
+
+
+            this.recognition.onresult = (event) => {
+
+
+
+
+                const speechResult = event.results[0][0].transcript.toLowerCase().trim();
+
+
+
+
+                const targetWord = this.selectedWord.en.toLowerCase().trim();
+
+
+
+
+                if (speechResult.includes(targetWord) || targetWord.includes(speechResult)) {
+
+
+
+
+                    this.verifyRecord(true);
+
+
+
+
+                } else {
+
+
+
+
+                    alert(`识别到你读的是: "${speechResult}"，再试一次吧！`);
+
+
+
+
+                    this.verifyRecord(false);
+
+
+
+
+                }
+
+
+
+
+            };
+
+
+
+
+            this.recognition.onerror = () => {
+
+
+
+
+                this.verifyRecord(false);
+
+
+
+
+            };
+
+
+
+
+            this.recognition.onend = () => {
+
+
+
+
+                if(document.getElementById('mic-btn')) {
+
+
+
+
+                    document.getElementById('mic-btn').style.display = "inline-block";
+
+
+
+
+                }
+
+
+
+
+                if(document.getElementById('stop-mic-btn')) {
+
+
+
+
+                    document.getElementById('stop-mic-btn').style.display = "none";
+
+
+
+
+                }
+
+
+
+
+            };
+
+
+
+
+        },
+
+
+
+
+        stopListeningActive() {
+
+
+
+
+            if(this.recognition) {
+
+
+
+
+                try { this.recognition.stop(); } catch(e){}
+
+
+
+
+            }
+
+
+
+
+        },
+
+
+
+
+        verifyRecord(isCorrect) {
+
+
+
+
+            const word = this.selectedWord;
+
+
+
+
+            if (isCorrect) {
+
+
+
+
+                let awardCoins = this.currentMode === 'challenge' ? 10 : 5;
+
+
+
+
+                gameState.coins += awardCoins;
+
+
+
+
+                this.passedWords.push(word.id);
+                // 单词计数 & 形态进化逻辑
+let passCount = this.passedWords.length;
+// 答对第1个单词：种子(0级) → 花朵(1级)
+if(passCount === 1 && gameState.level === 0){
+    gameState.level = 1;
+    gameState.showBubble("我长出小花啦🌸");
+    gameState.renderPet();
+}
+// 答对第2个单词：花朵(1级) → 青苹果(2级)
+if(passCount === 2 && gameState.level === 1){
+    gameState.level = 2;
+    gameState.showBubble("我变成青苹果啦🍏");
+    gameState.renderPet();
+}
+// 保存到本地，永久记录已答对单词
+gameState.stagePassedWords[this.currentStageId] = [...this.passedWords];
+gameState.saveProgress();
+
+
+
+                document.getElementById('panel-prompt').innerText = ` 🎉 读对啦！金币 +${awardCoins}💰`;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                this.speakWord(word.en);
+
+
+
+
+
+
+
+
+                document.getElementById('panel-actions').innerHTML = `
+
+
+
+
+                    <button onclick="stageSystem.checkStageProgress()" style="background: var(--primary-green); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">继续推进</button>
+
+
+
+
+                `;
+
+
+
+
+                this.renderHotspots();
+
+
+
+
+            } else {
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `❌ 读错了，别灰心！先听听正确发音，然后接着尝试：`;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                document.getElementById('panel-actions').innerHTML = `
+
+
+
+
+                    <button onclick="stageSystem.triggerAction('record')" style="background: var(--apple-red); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">重新录音尝试</button>
+
+
+
+
+                `;
+
+
+
+
+            }
+
+
+
+
+            gameState.updateUI();
+
+
+
+
+            gameState.saveProgress();
+
+
+
+
+        },
+
+
+
+
+        verifySpell() {
+
+
+
+
+            const word = this.selectedWord;
+
+
+
+
+            const userInput = document.getElementById('spell-input').value.trim().toLowerCase();
+
+
+
+
+            const targetWord = word.en.toLowerCase();
+
+
+
+
+            const isMatch = (userInput === targetWord) || (word.id === 'bike' && userInput === 'e bike');
+
+
+
+
+            if (isMatch) {
+
+
+
+
+                let awardCoins = this.currentMode === 'challenge' ? 10 : 5;
+
+
+
+
+                gameState.coins += awardCoins;
+
+
+
+
+                this.passedWords.push(word.id);
+                // 单词计数 & 形态进化逻辑
+let passCount = this.passedWords.length;
+// 答对第1个单词：种子(0级) → 花朵(1级)
+if(passCount === 1 && gameState.level === 0){
+    gameState.level = 1;
+    gameState.showBubble("我长出小花啦🌸");
+    gameState.renderPet();
+}
+// 答对第2个单词：花朵(1级) → 青苹果(2级)
+if(passCount === 2 && gameState.level === 1){
+    gameState.level = 2;
+    gameState.showBubble("我变成青苹果啦🍏");
+    gameState.renderPet();
+}
+// 保存到本地，永久记录已答对单词
+gameState.stagePassedWords[this.currentStageId] = [...this.passedWords];
+gameState.saveProgress();
+
+
+
+                document.getElementById('panel-prompt').innerText = `🎉 拼写正确！金币 +${awardCoins}💰`;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                this.speakWord(word.en);
+
+
+
+
+                if(this.currentMode === 'challenge') {
+
+
+
+
+                    this.handleGrowthLogic();
+
+
+
+
+                }
+
+
+
+
+                document.getElementById('panel-actions').innerHTML = `
+
+
+
+
+                    <button onclick="stageSystem.checkStageProgress()" style="background: var(--primary-green); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">继续推进</button>
+
+
+
+
+                `;
+
+
+
+
+                this.renderHotspots();
+
+
+
+
+            } else {
+
+
+
+
+                document.getElementById('panel-prompt').innerText = `❌ 拼写错误。为你提供音标和标准音，请听完再次尝试：`;
+
+
+
+
+                this.showResultPanel(word);
+
+
+
+
+                document.getElementById('panel-actions').innerHTML = `
+
+
+
+
+                    <button onclick="stageSystem.triggerAction('spell')" style="background: var(--apple-red); color: white; border: 2px solid var(--border-color); padding: 8px 20px; border-radius: 10px; font-weight: bold; cursor: pointer;">重新输入挑战</button>
+
+
+
+
+                `;
+
+
+
+
+            }
+
+
+
+
+            gameState.updateUI();
+
+
+
+
+            gameState.saveProgress();
+
+
+
+
+        },
+
+
+
+
+      handleGrowthLogic() {
+    // 已移除答题升级逻辑，等级仅手动/剧情控制，关卡独立解锁
+},
+
+
+
+
+        showResultPanel(word) {
+
+
+
+
+            const resultDiv = document.getElementById('panel-result');
+
+
+
+
+            document.getElementById('result-word').innerText = word.en;
+
+
+
+
+            document.getElementById('result-phonetic').innerText = word.phonetic;
+
+
+
+
+            document.getElementById('result-audio-btn').onclick = () => this.speakWord(word.en);
+
+
+
+
+            resultDiv.style.display = 'block';
+
+
+
+
+        },
+
+
+
+
+        speakWord(text) {
+
+
+
+
+            const cleanedText = text.split('/')[0].trim();
+
+
+
+
+            const audioUrl = `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(cleanedText)}&type=1`;
+
+
+
+
+            const audio = new Audio(audioUrl);
+
+
+
+
+            audio.play().catch(e => {
+
+
+
+
+                if ('speechSynthesis' in window) {
+
+
+
+
+                    const utterance = new SpeechSynthesisUtterance(cleanedText);
+
+
+
+
+                    utterance.lang = 'en-US';
+
+
+
+
+                    utterance.rate = 0.85;
+
+
+
+
+                    window.speechSynthesis.speak(utterance);
+
+
+
+
+                }
+
+
+
+
+            });
+
+
+
+
+        },
+
+
+
+
+        checkStageProgress() {
+
+
+
+
+            const stageData = STAGE_DATABASE[this.currentStageId];
+
+
+
+
+            const allDone = stageData.words.every(w => this.passedWords.includes(w.id));
+
+
+
+
+           if (allDone) {
+    if (this.currentMode === 'challenge') {
+        gameState.coins += 50;
+        gameState.happy = Math.min(100, gameState.happy + 20);
+        gameState.updateUI();
+        // 整关通关：青苹果(2级) → 红苹果(5级)
+if(gameState.level < 5){
+    gameState.level = 5;
+    gameState.showBubble("通关成功！我变成红苹果啦🍎");
+    gameState.renderPet();
+}
+        // 需求2：通关自动解锁下一关（最大5关）
+        if(gameState.unlockStage < 5){
+            gameState.unlockStage += 1;
+            gameState.saveProgress();
+        }
+        alert(`祝贺您攻克当前关卡全部单词！\n金币大丰收！此关卡接下来已转为复习关，记得经常带小苹果复习温故哦！`);
+        this.closeStage();
+
+
+
+
+              } else {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const reviewKey = `${todayStr}_stage${this.currentStageId}`;
+    this.reviewCounts[reviewKey] += 1;
+    // 把复习次数同步保存到本地存储
+    localStorage.setItem('apple_review_count', JSON.stringify(this.reviewCounts));
+    gameState.coins += 30;
+    gameState.hp = Math.min(100, gameState.hp + 40);
+    gameState.happy = Math.min(100, gameState.happy + 20);
+    gameState.showBubble("受到主人的温故关怀，好精神！");
+    gameState.updateUI();
+    gameState.saveProgress();
+    alert(`✨ 整体复习完成！金币 +30💰，小苹果生命值恢复！\n今日此关卡已复习次数：${this.reviewCounts[reviewKey]}/2`);
+    this.closeStage();
+}
+
+
+
+
+            } else {
+
+
+
+
+                this.resetPanel();
+
+
+
+
+            }
+
+
+
+
+        }
+
+
+
+
+    };
+
+
+
+
+    // --- 自动定时生病监视机制 ---
+
+
+
+
+    setTimeout(() => {
+
+
+
+
+        setInterval(() => {
+
+
+
+
+            if (gameState.isDead || gameState.level < 1) return;
+
+
+
+
+            const todayStr = new Date().toISOString().split('T')[0];
+
+
+
+
+            const hasReviewedToday = stageSystem.reviewCounts[`${todayStr}_stage1`] > 0;
+
+
+
+
+            if (!hasReviewedToday) {
+
+
+
+
+                gameState.hp = Math.max(0, gameState.hp - 3);
+
+
+
+
+                if (gameState.hp <= 30 && gameState.hp > 0) {
+
+
+
+
+                    gameState.showBubble(`咳咳……${gameState.userName}，我好像有点不舒服……`);
+
+
+
+
+               }
+
+
+
+
+                if (gameState.hp <= 0) {
+
+
+
+
+                    gameState.isDead = true;
+
+
+
+
+                    if (gameState.blinkTimer) clearTimeout(gameState.blinkTimer);
+
+
+
+
+                }
+
+
+
+
+                gameState.updateUI();
+
+
+
+
+                gameState.saveProgress();
+
+
+
+
+                gameState.renderPet();
+
+
+
+
+            }
+
+
+
+
+        }, 10000);
+
+
+
+
+    }, 500);
+
+// ========== 家具城 背景切换系统 ==========
+const furnitureSystem = {
+    // 打开家具城弹窗
+    openFurniture() {
+        if(gameState.isDead){
+            alert("小苹果已经去世，请先点击重置游戏。");
+            return;
+        }
+        document.getElementById('furniture-modal').style.display = 'flex';
+        this.renderBgList();
+    },
+    // 关闭弹窗
+    closeFurniture() {
+        document.getElementById('furniture-modal').style.display = 'none';
+    },
+    // 渲染背景选择列表
+    renderBgList() {
+        const listEl = document.getElementById('furniture-list');
+        let html = '';
+        // 选项0：恢复默认背景
+        html += `
+            <div style="background:white; border:2px solid var(--border-color); border-radius:12px; padding:12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+                ${gameState.currentBg === 0 ? 'background:var(--oat-accent);' : ''}"
+                onclick="furnitureSystem.selectBg(0)">
+                <span style="font-weight:bold; color:var(--border-color)">默认原始背景</span>
+                <span style="font-size:12px;">${gameState.currentBg === 0 ? '✅ 当前使用' : '点击预览'}</span>
+            </div>
+        `;
+        // 遍历5款自定义背景
+        gameState.bgList.forEach((item, index) => {
+            const num = index + 1;
+            html += `
+                <div style="background:white; border:2px solid var(--border-color); border-radius:12px; padding:12px; cursor:pointer; display:flex; justify-content:space-between; align-items:center;
+                    ${gameState.currentBg === num ? 'background:var(--oat-accent);' : ''}"
+                    onclick="furnitureSystem.selectBg(${num})">
+                    <span style="font-weight:bold; color:var(--border-color)">${item.name}</span>
+                    <span style="font-size:12px;">${gameState.currentBg === num ? '✅ 当前使用' : '点击预览'}</span>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+    },
+    // 选中并实时预览背景
+    selectBg(num) {
+        gameState.currentBg = num;
+        gameState.renderBg();
+        this.renderBgList();
+    },
+    // 保存背景并关闭弹窗
+    saveBg() {
+        gameState.saveProgress();
+        gameState.showBubble("背景设置成功啦~");
+        this.closeFurniture();
+    }
+};
+// ========== 家具城系统结束 ==========
+
+
+</script>
+
+
+
+
+</body>
+
+
+
+
+</html>
